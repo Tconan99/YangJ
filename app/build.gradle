@@ -1,15 +1,21 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        debug {
+            keyAlias 'conan'
+            keyPassword 'love1314'
+            storeFile file('../key/android.jks')
+            storePassword 'love1314'
+        }
+    }
     compileSdkVersion 23
     buildToolsVersion "23.0.2"
-
     defaultConfig {
         applicationId "com.jc.yangj"
         minSdkVersion 18
         targetSdkVersion 23
     }
-
     buildTypes {
         release {
             minifyEnabled false
