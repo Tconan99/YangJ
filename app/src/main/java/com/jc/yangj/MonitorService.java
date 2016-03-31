@@ -31,15 +31,17 @@ public class MonitorService extends AccessibilityService {
     private boolean mContainsOpenLucky; //拆红包
     private boolean mIsAuto; 		// 是否是自动操作
     private boolean mIsNeedBack; 		// 是否是自动操作
-    //private Date mLastClickTime;
+    private long mLastClickTime;
     private boolean mIsLock = false;
+    private boolean mIsChangePage = false;
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
+    public synchronized void onAccessibilityEvent(AccessibilityEvent event) {
         final int eventType = event.getEventType();
 
         if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            Log.i("111", "TYPE_NOTIFICATION_STATE_CHANGED");
+            Log.i("MonitorServiceJump", "TYPE_NOTIFICATION_STATE_CHANGED");
+            mLastClickTime = 0;
             unlockScreen();
             mLuckyClicked = false;
 
@@ -59,14 +61,16 @@ public class MonitorService extends AccessibilityService {
                 }
             }
         }
+
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            Log.i("MonitorService", "TYPE_WINDOW_STATE_CHANGED");
+            Log.i("MonitorServiceJump", "TYPE_WINDOW_STATE_CHANGED");
+
+            mIsChangePage = true;
 
             if (Const.isHaveNoPerson && mIsNeedBack) {
                 mIsNeedBack = false;
-                Log.i("1111", "232323232");
+                Log.i("MonitorServiceJump", "GLOBAL_ACTION_BACK 列表");
                 //performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-                performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
                 performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
                 return;
             }
@@ -74,12 +78,13 @@ public class MonitorService extends AccessibilityService {
             run(event);
         }
         if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            Log.i("MonitorService", "TYPE_WINDOW_CONTENT_CHANGED");
-            if (Const.isNeedInPage) {
-                //mLuckyClicked = false;
-                run(event);
-            }
+            Log.i("MonitorServiceJump", "TYPE_WINDOW_CONTENT_CHANGED");
+
+            //Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
+
+            run(event);
         }
+
     }
 
     @SuppressWarnings("deprecation")
@@ -95,33 +100,23 @@ public class MonitorService extends AccessibilityService {
 
     private void run(AccessibilityEvent event) {
 
-        if(mIsLock) {
-            return;
-        }
-        mIsLock = true;
-
-//    	if (mLastClickTime != null) {
-//    		long now = new Date().getTime();
-//    		long last = mLastClickTime.getTime();
-//    		if (now-last<3000) {
-//    			mIsLock = false;
-//    			return;
-//    		}
-//    	}
+//        long now = new Date().getTime();
+//        if (now - mLastClickTime<50 && !mIsChangePage) {
+//            return;
+//        }
+//        mLastClickTime = now;
 
         AccessibilityNodeInfo nodeInfo = event.getSource();
-
-//    	while (nodeInfo!=null && nodeInfo.getParent()!=null) {
-//    		nodeInfo = nodeInfo.getParent();
-//    	}
-
+        //Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
 
         if (null != nodeInfo) {
+            Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
             mNodeInfoList.clear();
             traverseNode(nodeInfo);
             if (mContainsLucky && (!mLuckyClicked||false)) {
                 int size = mNodeInfoList.size();
                 if (size > 0) {
+                    Log.i("MonitorServiceJump", "ACTION_CLICK 红包");
                     /** step1: get the last hongbao cell to fire click action */
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
@@ -133,26 +128,47 @@ public class MonitorService extends AccessibilityService {
             if (mContainsOpenLucky) {
                 int size = mNodeInfoList.size();
                 if (size > 0) {
+
+//                    long now = new Date().getTime();
+//                    if (now - mLastClickTime<1000) {
+//                        return;
+//                    }
+//                    mLastClickTime = now;
+
+                    Log.i("MonitorServiceJump", "mLastClickTime=" + mLastClickTime);
+
+                    if (null == nodeInfo || mLastClickTime==nodeInfo.getWindowId()) {
+                        return;
+                    }
+
+                    mLastClickTime = nodeInfo.getWindowId();
+
+                    // 播放提示
+                    MainActivity.playSound();
+
+                    Log.i("MonitorServiceJump", "ACTION_CLICK 拆");
                     /** step2: when hongbao clicked we need to open it, so fire click action */
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     mContainsOpenLucky = false;
                     mIsAuto = true;
 
-                    // 播放提示
-                    MainActivity.playSound();
+
                 }
             }
             if (mContent) {
                 if (mIsAuto) {
                     mIsAuto = false;
                     //mLastClickTime = new Date();
-                    if (false && Const.isHaveNoPerson) {
-                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-                    } else {
-                        mIsNeedBack = true;
-                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                    }
+//                    if (false && Const.isHaveNoPerson) {
+//                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+//                    } else {
+//                        mIsNeedBack = true;
+//                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+//                    }
+                    Log.i("MonitorServiceJump", "GLOBAL_ACTION_BACK 返回");
+                    mIsNeedBack = true;
+                    performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
 
                 }
                 //performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
@@ -160,7 +176,6 @@ public class MonitorService extends AccessibilityService {
             }
         }
 
-        mIsLock = false;
     }
 
     @SuppressWarnings("unused")

@@ -149,6 +149,7 @@ public class MainActivity extends Activity {
 				//audioFile = new File(Environment.getExternalStorageDirectory(),"test.wav");
 				audioFile = new File("file:///android_asset/","hongbao_arrived.wav");
 				System.out.println(audioFile.length());
+				Log.i("playSound", "length=" + audioFile.length());
 				try {
 					fileInputStream = new FileInputStream(audioFile);
 					fileInputStream.skip(0x2c);
