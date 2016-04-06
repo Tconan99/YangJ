@@ -25,23 +25,17 @@ import android.widget.RemoteViews;
 public class MonitorService extends AccessibilityService {
     private ArrayList<AccessibilityNodeInfo> mNodeInfoList = new ArrayList<AccessibilityNodeInfo>();
 
-    private boolean mLuckyClicked;	//红包是否点击了
-    private boolean mContent;		//内容页
-    private boolean mContainsLucky; //有红包
-    private boolean mContainsOpenLucky; //拆红包
-    private boolean mIsAuto; 		// 是否是自动操作
-    private boolean mIsNeedBack; 		// 是否是自动操作
-    private long mLastClickTime;
-    private boolean mIsLock = false;
-    private boolean mIsChangePage = false;
+    private boolean mLuckyClicked;       // 红包是否点击了
+    private boolean mLuckyInfo;            // 内容页
+    private boolean mContainsLucky;     // 有红包
+    private boolean mContainsOpenLucky;// 拆红包
+    private boolean mIsAutoModel;      //  自动模式
 
     @Override
     public synchronized void onAccessibilityEvent(AccessibilityEvent event) {
         final int eventType = event.getEventType();
 
         if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            Log.i("MonitorServiceJump", "TYPE_NOTIFICATION_STATE_CHANGED");
-            mLastClickTime = 0;
             unlockScreen();
             mLuckyClicked = false;
 
@@ -52,9 +46,9 @@ public class MonitorService extends AccessibilityService {
                     if (!TextUtils.isEmpty(text) && text.contains("[微信红包]")) {
                         final PendingIntent pendingIntent = notification.contentIntent;
                         try {
-                            Log.i("MonitorService", "pendingIntent");
                             pendingIntent.send();
                         } catch (PendingIntent.CanceledException e) {
+
                         }
                         break;
                     }
@@ -64,25 +58,16 @@ public class MonitorService extends AccessibilityService {
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             Log.i("MonitorServiceJump", "TYPE_WINDOW_STATE_CHANGED");
-
-            mIsChangePage = true;
-
-            if (Const.isHaveNoPerson && mIsNeedBack) {
-                mIsNeedBack = false;
-                Log.i("MonitorServiceJump", "GLOBAL_ACTION_BACK 列表");
-                //performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+            if (Const.isHaveNoPerson && mIsAutoModel) {
+                mIsAutoModel = false;
                 performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
                 return;
             }
-
             run(event);
         }
+
         if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            Log.i("MonitorServiceJump", "TYPE_WINDOW_CONTENT_CHANGED");
-
-            //Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
-
-            run(event);
+            //run(event);
         }
 
     }
@@ -100,113 +85,44 @@ public class MonitorService extends AccessibilityService {
 
     private void run(AccessibilityEvent event) {
 
-//        long now = new Date().getTime();
-//        if (now - mLastClickTime<50 && !mIsChangePage) {
-//            return;
-//        }
-//        mLastClickTime = now;
-
         AccessibilityNodeInfo nodeInfo = event.getSource();
-        //Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
 
         if (null != nodeInfo) {
-            Log.i("MonitorServiceJump", nodeInfo.getWindowId() + "");
             mNodeInfoList.clear();
             traverseNode(nodeInfo);
-            if (mContainsLucky && (!mLuckyClicked||false)) {
+            if (mContainsLucky && !mLuckyClicked) {
                 int size = mNodeInfoList.size();
                 if (size > 0) {
-                    Log.i("MonitorServiceJump", "ACTION_CLICK 红包");
-                    /** step1: get the last hongbao cell to fire click action */
-                    AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
-                    cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     mContainsLucky = false;
                     mLuckyClicked = true;
-                    //mIsAuto = true;
+                    AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
+                    cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 }
             }
             if (mContainsOpenLucky) {
                 int size = mNodeInfoList.size();
                 if (size > 0) {
-
-//                    long now = new Date().getTime();
-//                    if (now - mLastClickTime<1000) {
-//                        return;
-//                    }
-//                    mLastClickTime = now;
-
-                    Log.i("MonitorServiceJump", "mLastClickTime=" + mLastClickTime);
-
-                    if (null == nodeInfo || mLastClickTime==nodeInfo.getWindowId()) {
+                    if (null == nodeInfo) {
                         return;
                     }
 
-                    mLastClickTime = nodeInfo.getWindowId();
-
                     // 播放提示
-                    MainActivity.playSound();
+                    // TODO MainActivity.playSound();
 
-                    Log.i("MonitorServiceJump", "ACTION_CLICK 拆");
-                    /** step2: when hongbao clicked we need to open it, so fire click action */
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     mContainsOpenLucky = false;
-                    mIsAuto = true;
+                    mIsAutoModel = true;
 
 
                 }
             }
-            if (mContent) {
-                if (mIsAuto) {
-                    mIsAuto = false;
-                    //mLastClickTime = new Date();
-//                    if (false && Const.isHaveNoPerson) {
-//                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-//                    } else {
-//                        mIsNeedBack = true;
-//                        performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-//                    }
-                    Log.i("MonitorServiceJump", "GLOBAL_ACTION_BACK 返回");
-                    mIsNeedBack = true;
-                    performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+            if (mLuckyInfo) {
+                if (mIsAutoModel) {
 
                 }
-                //performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                mContent = false;
+                mLuckyInfo = false;
             }
-        }
-
-    }
-
-    @SuppressWarnings("unused")
-    private void findView(AccessibilityNodeInfo node) {
-        if (null == node) return;
-
-        // 别人的红包
-        List<AccessibilityNodeInfo> listGet = node.findAccessibilityNodeInfosByText("领取红包");
-        if (listGet!=null) {
-            mContainsLucky = true;
-            mNodeInfoList.addAll(listGet);
-        }
-
-        // 自己的红包
-        List<AccessibilityNodeInfo> listLook = node.findAccessibilityNodeInfosByText("查看红包");
-        if (listGet!=null && Const.isNeedOpenSelf) {
-            mContainsLucky = true;
-            mNodeInfoList.addAll(listLook);
-        }
-
-        // 拆红包
-        List<AccessibilityNodeInfo> listOpen = node.findAccessibilityNodeInfosByText("拆红包");
-        if (listOpen!=null) {
-            mContainsOpenLucky = true;
-            mNodeInfoList.add(node);
-        }
-
-        // 红包详情
-        List<AccessibilityNodeInfo> listInfo = node.findAccessibilityNodeInfosByText("红包详情");
-        if (listInfo!=null) {
-            mContent = true;
         }
 
     }
@@ -222,18 +138,15 @@ public class MonitorService extends AccessibilityService {
             }
         } else {
 
-            // 添加判断“檫”的逻辑
+            // 添加判断“開”的逻辑
             if (node!=null && node.getParent()!=null) {
                 int childNumber = node.getParent().getChildCount();
                 try {
                     if (childNumber>2 && "android.widget.Button".equals(node.getClassName())) {
                         String text1 = node.getParent().getChild(1).getText().toString();
-                        //String text5 = node.getParent().getChild(5).getChild(0).getText().toString();
                         if (text1.contains("发了一个红包")) {
-                            //if (text1.contains("发了一个红包") && text5.equals("看看大家的手气")) {
                             mContainsOpenLucky = true;
                             mNodeInfoList.add(node);
-                            //Log.i("childNumber", String.valueOf(childNumber));
                         }
                     }
                 } catch (Exception e) {
@@ -244,34 +157,33 @@ public class MonitorService extends AccessibilityService {
             CharSequence text = node.getText();
             if (null != text && text.length() > 0) {
                 String str = text.toString();
-                Log.i("MonitorService", str);
+                //Log.i("MonitorService", str);
 
                 if (str.contains("领取红包") || (Const.isNeedOpenSelf && str.contains("查看红包")) ) {
                     mContainsLucky = true;
                     mNodeInfoList.add(node.getParent());
                 }
 
-                if (str.contains("拆红包")) {
-                    mContainsOpenLucky = true;
-                    mNodeInfoList.add(node);
-                }
-
                 if (str.contains("你领取了") || str.contains("你的红包已被领完")) {
-                    Log.i("MonitorService", str);
+                    //Log.i("MonitorService", str);
                     mContainsLucky = false;
                     mContainsOpenLucky = false;
                     mNodeInfoList.clear();
                 }
 
                 if (str.contains("红包详情") || str.contains("手慢了")) {
-                    mContent = true;
+                    mLuckyInfo = true;
                 }
             }
         }
     }
 
 
-
+    /**
+     * @param notification 通知栏
+     * @return 包含的字符串
+     *
+     */
     public List<String> getText(Notification notification) {
         if (null == notification) return null;
 
@@ -279,7 +191,7 @@ public class MonitorService extends AccessibilityService {
         if (views == null) views = notification.contentView;
         if (views == null) return null;
 
-        List<String> text = new ArrayList<String>();
+        List<String> text = new ArrayList<>();
         try {
             Field field = views.getClass().getDeclaredField("mActions");
             field.setAccessible(true);
@@ -287,27 +199,22 @@ public class MonitorService extends AccessibilityService {
             @SuppressWarnings("unchecked")
             ArrayList<Parcelable> actions = (ArrayList<Parcelable>) field.get(views);
 
-            // Find the setText() and setTime() reflection actions
             for (Parcelable p : actions) {
                 Parcel parcel = Parcel.obtain();
                 p.writeToParcel(parcel, 0);
                 parcel.setDataPosition(0);
 
-                // The tag tells which type of action it is (2 is ReflectionAction, from the source)
                 int tag = parcel.readInt();
                 if (tag != 2) continue;
 
-                // View ID
                 parcel.readInt();
 
                 String methodName = parcel.readString();
                 if (null == methodName) {
                     continue;
                 } else if (methodName.equals("setText")) {
-                    // Parameter type (10 = Character Sequence)
                     parcel.readInt();
 
-                    // Store the actual string
                     String t = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(parcel).toString().trim();
                     text.add(t);
                 }

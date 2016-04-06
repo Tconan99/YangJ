@@ -35,11 +35,7 @@ public class MainActivity extends Activity {
 	private final String LOCK_TAG = "Charge";
 
 	private Switch isServiceSwitch = null;
-	private Switch isSelfSwitch = null;
-	private Switch isPageSwitch = null;
 	private Switch isHaveNoPersonSwitch = null;
-	private static Switch isSoundSwitch = null;
-	private static Switch isVibratorSwitch = null;
 
 	private static MainActivity mainActivity;
 	private static boolean isHand = true;
@@ -70,29 +66,6 @@ public class MainActivity extends Activity {
 			}
 		});
 
-		// 抢自己红包
-		isSelfSwitch = (Switch)findViewById(R.id.main_isselfopen_switch);
-		isSelfSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-
-			@Override
-			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-				Const.isNeedOpenSelf = isChecked;
-			}
-		});
-
-		// 在页面抢红包
-		isPageSwitch = (Switch)findViewById(R.id.main_ispageopen_switch);
-		isPageSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-
-			@Override
-			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-				Const.isNeedInPage = isChecked;
-			}
-		});
-
-		isSoundSwitch = (Switch)findViewById(R.id.main_issound_switch);
-		isVibratorSwitch = (Switch)findViewById(R.id.main_isvibratorh_switch);
-
 		// 无人模式
 		isHaveNoPersonSwitch = (Switch)findViewById(R.id.main_havenoperson_switch);
 		isHaveNoPersonSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
@@ -116,6 +89,13 @@ public class MainActivity extends Activity {
 		});
 
 		//playSound();
+
+		findViewById(R.id.main_tips_btn).setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				playSound();
+			}
+		});
 	}
 
 	public static void playSound() {
@@ -126,52 +106,43 @@ public class MainActivity extends Activity {
 				return;
 			}
 
-			if (!isSoundSwitch.isChecked() && !isVibratorSwitch.isChecked()) {
-				return;
-			}
-
 			Context context = mainActivity;
 
-			if (isVibratorSwitch.isChecked()) {
-				// 调用震动
-				Vibrator vibrator = (Vibrator)context.getSystemService(Context.VIBRATOR_SERVICE);
-				long [] pattern = {100, 400, 100, 400};   // 停止 开启 停止 开启
-				vibrator.vibrate(pattern, -1);           //重复两次上面的pattern 如果只想震动一次，index设为-1
+
+			// 调用震动
+			Vibrator vibrator = (Vibrator)context.getSystemService(Context.VIBRATOR_SERVICE);
+			long [] pattern = {100, 400, 100, 400};   // 停止 开启 停止 开启
+			vibrator.vibrate(pattern, -1);           //重复两次上面的pattern 如果只想震动一次，index设为-1
+
+
+
+
+			initAudioTrack();
+			audioFile = new File("file:///android_asset/hongbao_arrived.wav");
+			System.out.println(audioFile.length());
+			Log.i("playSound", "length=" + audioFile.length());
+			try {
+				fileInputStream = new FileInputStream(audioFile);
+				fileInputStream.skip(0x2c);
+			} catch (Exception e) {
 			}
 
-			if (isSoundSwitch.isChecked()) {
-				// 调用提示音
-//		        Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-//		        Ringtone r = RingtoneManager.getRingtone(context.getApplicationContext(), notification);
-//		        r.play();
-
-				initAudioTrack();
-				//audioFile = new File(Environment.getExternalStorageDirectory(),"test.wav");
-				audioFile = new File("file:///android_asset/","hongbao_arrived.wav");
-				System.out.println(audioFile.length());
-				Log.i("playSound", "length=" + audioFile.length());
-				try {
-					fileInputStream = new FileInputStream(audioFile);
-					fileInputStream.skip(0x2c);
-				} catch (Exception e) {
-				}
-
-				writePCMThread = new Thread(new Runnable(){
-					public void run() {
-						try {
-							while(fileInputStream.read(buffer)>=0)
-							{
-								System.out.println("write pcm data");
-								audioTrack.write(buffer, 0, buffer.length);
-							}
+			writePCMThread = new Thread(new Runnable(){
+				public void run() {
+					try {
+						while(fileInputStream.read(buffer)>=0)
+						{
+							System.out.println("write pcm data");
+							audioTrack.write(buffer, 0, buffer.length);
 						}
-						catch (Exception e) {
-							e.printStackTrace();
-						}
-
 					}
-				});
-			}
+					catch (Exception e) {
+						e.printStackTrace();
+					}
+
+				}
+			});
+
 
 		} catch (Exception e) {
 			Log.e("playSound", "提示错误", e);

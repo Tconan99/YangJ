@@ -23,46 +23,6 @@
         android:text="[胖佶红包]抢红包服务"
         android:textOn="已开启"
         android:textOff="已关闭" />
-    
-    <Switch
-        android:id="@+id/main_isselfopen_switch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="是否抢自己的红包"
-       	android:checked="true"
-        android:textOn="抢"
-        android:textOff="不抢" />
-
-    <Switch
-        android:id="@+id/main_ispageopen_switch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="是否在页面抢红包"
-       	android:checked="true"
-        android:textOn="抢"
-        android:textOff="不抢" />
-    
-	<Switch
-        android:id="@+id/main_issound_switch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="抢到红包是否有铃声提示"
-       	android:checked="true"
-        android:textOn="提示"
-        android:textOff="不提示" />
-	
-	<Switch
-        android:id="@+id/main_isvibratorh_switch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="抢到红包是否有震动提示"
-       	android:checked="true"
-        android:textOn="提示"
-        android:textOff="不提示" />
 
 	<Switch
 	    android:id="@+id/main_havenoperson_switch"
@@ -82,5 +42,13 @@
 	    android:layout_marginTop="20dp"
 	    android:enabled="false"
 	    android:text="更新" />
+
+    <Button
+        android:id="@+id/main_tips_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:text="提示" />
     
 </LinearLayout>
