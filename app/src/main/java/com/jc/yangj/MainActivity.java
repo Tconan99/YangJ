@@ -16,6 +16,7 @@ import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -39,6 +40,9 @@ public class MainActivity extends Activity {
 
 	private static MainActivity mainActivity;
 	private static boolean isHand = true;
+
+	private static MediaPlayer mPlayer = null;
+	private static Vibrator mVibrator = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +92,9 @@ public class MainActivity extends Activity {
 			}
 		});
 
-		//playSound();
+		mVibrator = (Vibrator)this.getSystemService(Context.VIBRATOR_SERVICE);
+		mPlayer = MediaPlayer.create(this, R.raw.hongbao_arrived);
+		mPlayer.setLooping(false);
 
 		findViewById(R.id.main_tips_btn).setOnClickListener(new OnClickListener() {
 			@Override
@@ -102,47 +108,16 @@ public class MainActivity extends Activity {
 
 		try {
 
-			if (mainActivity==null) {
-				return;
-			}
-
-			Context context = mainActivity;
-
-
 			// 调用震动
-			Vibrator vibrator = (Vibrator)context.getSystemService(Context.VIBRATOR_SERVICE);
-			long [] pattern = {100, 400, 100, 400};   // 停止 开启 停止 开启
-			vibrator.vibrate(pattern, -1);           //重复两次上面的pattern 如果只想震动一次，index设为-1
-
-
-
-
-			initAudioTrack();
-			audioFile = new File("file:///android_asset/hongbao_arrived.wav");
-			System.out.println(audioFile.length());
-			Log.i("playSound", "length=" + audioFile.length());
-			try {
-				fileInputStream = new FileInputStream(audioFile);
-				fileInputStream.skip(0x2c);
-			} catch (Exception e) {
+			if (mVibrator!=null) {
+				long[] pattern = {100, 400, 100, 400};   // 停止 开启 停止 开启
+				mVibrator.vibrate(pattern, 2);           //重复两次上面的pattern 如果只想震动一次，index设为-1
 			}
 
-			writePCMThread = new Thread(new Runnable(){
-				public void run() {
-					try {
-						while(fileInputStream.read(buffer)>=0)
-						{
-							System.out.println("write pcm data");
-							audioTrack.write(buffer, 0, buffer.length);
-						}
-					}
-					catch (Exception e) {
-						e.printStackTrace();
-					}
-
-				}
-			});
-
+			// 播放媒体音乐
+			if (mPlayer!=null) {
+				mPlayer.start();
+			}
 
 		} catch (Exception e) {
 			Log.e("playSound", "提示错误", e);
