@@ -25,10 +25,12 @@ import android.widget.RemoteViews;
 public class MonitorService extends AccessibilityService {
     private ArrayList<AccessibilityNodeInfo> mNodeInfoList = new ArrayList<AccessibilityNodeInfo>();
 
-    private boolean mLuckyClicked;       // 红包是否点击了
     private boolean mLuckyInfo;            // 内容页
     private boolean mContainsLucky;     // 有红包
+    private boolean mLuckyClicked;       // 红包是否点击了
+
     private boolean mContainsOpenLucky;// 拆红包
+    private boolean mOpenLuckyClicked;// 拆红包是否点击了
     private boolean mIsAutoModel;      //  自动模式
 
     @Override
@@ -36,6 +38,7 @@ public class MonitorService extends AccessibilityService {
         final int eventType = event.getEventType();
 
         if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            Log.i("MonitorServiceJump", "TYPE_NOTIFICATION_STATE_CHANGED");
             unlockScreen();
             mLuckyClicked = false;
 
@@ -57,17 +60,19 @@ public class MonitorService extends AccessibilityService {
         }
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            Log.i("MonitorServiceJump", "TYPE_WINDOW_STATE_CHANGED");
-            if (Const.isHaveNoPerson && mIsAutoModel) {
+            //Log.i("MonitorServiceJump", "TYPE_WINDOW_STATE_CHANGED");
+            if (!Const.isHaveNoPerson && mIsAutoModel) {
                 mIsAutoModel = false;
                 performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
                 return;
             }
+            mOpenLuckyClicked = false;
             run(event);
         }
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            //run(event);
+            //Log.i("MonitorServiceJump", "TYPE_WINDOW_CONTENT_CHANGED");
+            run(event);
         }
 
     }
@@ -85,21 +90,26 @@ public class MonitorService extends AccessibilityService {
 
     private void run(AccessibilityEvent event) {
 
+        //Log.i("MonitorServiceJump", "run");
         AccessibilityNodeInfo nodeInfo = event.getSource();
 
         if (null != nodeInfo) {
             mNodeInfoList.clear();
             traverseNode(nodeInfo);
             if (mContainsLucky && !mLuckyClicked) {
+                Log.i("MonitorServiceJump", "mContainsLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     mContainsLucky = false;
                     mLuckyClicked = true;
+                    mOpenLuckyClicked = false;
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 }
             }
-            if (mContainsOpenLucky) {
+            if (mContainsOpenLucky  && !mOpenLuckyClicked) {
+                mOpenLuckyClicked = true;
+                Log.i("MonitorServiceJump", "mContainsOpenLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     if (null == nodeInfo) {
@@ -107,7 +117,7 @@ public class MonitorService extends AccessibilityService {
                     }
 
                     // 播放提示
-                    // TODO MainActivity.playSound();
+                    MainActivity.playSound();
 
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
@@ -118,6 +128,7 @@ public class MonitorService extends AccessibilityService {
                 }
             }
             if (mLuckyInfo) {
+                Log.i("MonitorServiceJump", "mLuckyInfo");
                 if (mIsAutoModel) {
 
                 }
@@ -187,11 +198,24 @@ public class MonitorService extends AccessibilityService {
     public List<String> getText(Notification notification) {
         if (null == notification) return null;
 
-        RemoteViews views = notification.bigContentView;
-        if (views == null) views = notification.contentView;
-        if (views == null) return null;
-
         List<String> text = new ArrayList<>();
+
+        RemoteViews views = notification.bigContentView;
+        if (views == null) {
+            views = notification.contentView;
+        }
+
+        if (views == null) {
+            if (notification.tickerText!=null) {
+                text.add(notification.tickerText.toString());
+                return text;
+            } else {
+                return null;
+            }
+
+        }
+
+
         try {
             Field field = views.getClass().getDeclaredField("mActions");
             field.setAccessible(true);

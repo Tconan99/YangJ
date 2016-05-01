@@ -111,7 +111,7 @@ public class MainActivity extends Activity {
 			// 调用震动
 			if (mVibrator!=null) {
 				long[] pattern = {100, 400, 100, 400};   // 停止 开启 停止 开启
-				mVibrator.vibrate(pattern, 2);           //重复两次上面的pattern 如果只想震动一次，index设为-1
+				//mVibrator.vibrate(pattern, 2);           //重复两次上面的pattern 如果只想震动一次，index设为-1
 			}
 
 			// 播放媒体音乐
