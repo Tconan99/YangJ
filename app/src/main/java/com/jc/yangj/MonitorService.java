@@ -25,13 +25,13 @@ import android.widget.RemoteViews;
 public class MonitorService extends AccessibilityService {
     private ArrayList<AccessibilityNodeInfo> mNodeInfoList = new ArrayList<AccessibilityNodeInfo>();
 
-    private boolean mLuckyInfo;            // 内容页
-    private boolean mContainsLucky;     // 有红包
-    private boolean mLuckyClicked;       // 红包是否点击了
+    private boolean mLuckyInfo;             // 内容页
+    private boolean mContainsLucky;         // 有红包
+    private boolean mLuckyClicked = true;   // 红包是否点击了
 
-    private boolean mContainsOpenLucky;// 拆红包
-    private boolean mOpenLuckyClicked;// 拆红包是否点击了
-    private boolean mIsAutoModel;      //  自动模式
+    private boolean mContainsOpenLucky;     // 拆红包
+    private boolean mOpenLuckyClicked;      // 拆红包是否点击了
+    private boolean mIsAutoModel;           // 自动模式
 
     @Override
     public synchronized void onAccessibilityEvent(AccessibilityEvent event) {
