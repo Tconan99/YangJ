@@ -8,4 +8,6 @@ public class Const {
     public static boolean isNeedBack = true; //是否需要返回
 
     public static boolean isHaveNoPerson = false; //是否开启无人模式
+
+    public static boolean isNeedNotify = false; //是否开启无人模式
 }	

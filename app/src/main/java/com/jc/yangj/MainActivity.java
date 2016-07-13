@@ -19,7 +19,6 @@ import android.media.AudioTrack;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
@@ -37,6 +36,7 @@ public class MainActivity extends Activity {
 
 	private Switch isServiceSwitch = null;
 	private Switch isHaveNoPersonSwitch = null;
+	private Switch isNeedNotifySwitch = null;
 
 	private static MainActivity mainActivity;
 	private static boolean isHand = true;
@@ -80,6 +80,13 @@ public class MainActivity extends Activity {
 			}
 		});
 
+		isNeedNotifySwitch = (Switch)findViewById(R.id.main_neednotify_switch);
+		isNeedNotifySwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				Const.isNeedNotify = isChecked;
+			}
+		});
 
 		//更新按钮
 		findViewById(R.id.main_update_btn).setOnClickListener(new OnClickListener() {
@@ -107,6 +114,10 @@ public class MainActivity extends Activity {
 	public static void playSound() {
 
 		try {
+
+			if (!Const.isNeedNotify) {
+				return;
+			}
 
 			// 调用震动
 			if (mVibrator!=null) {
