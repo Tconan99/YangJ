@@ -27,7 +27,6 @@ public class MonitorService extends AccessibilityService {
 
     private boolean mLuckyInfo;             // 内容页
     private boolean mContainsLucky;         // 有红包
-    private boolean mLuckyClicked = true;   // 红包是否点击了
 
     private boolean mContainsOpenLucky;     // 拆红包
     private boolean mOpenLuckyClicked;      // 拆红包是否点击了
@@ -38,14 +37,15 @@ public class MonitorService extends AccessibilityService {
         final int eventType = event.getEventType();
 
         if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            Log.i("MonitorServiceJump", "TYPE_NOTIFICATION_STATE_CHANGED");
+            LogUtils.log("onAccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED");
             unlockScreen();
-            mLuckyClicked = false;
+            // mLuckyClicked = false;
 
             Notification notification = (Notification) event.getParcelableData();
             List<String> textList = getText(notification);
             if (null != textList && textList.size() > 0) {
                 for (String text : textList) {
+                    LogUtils.log("message=" + text);
                     if (!TextUtils.isEmpty(text) && text.contains("[微信红包]")) {
                         final PendingIntent pendingIntent = notification.contentIntent;
                         try {
@@ -60,7 +60,7 @@ public class MonitorService extends AccessibilityService {
         }
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            //Log.i("MonitorServiceJump", "TYPE_WINDOW_STATE_CHANGED");
+            LogUtils.log("onAccessibilityEvent.TYPE_WINDOW_STATE_CHANGED");
             if (!Const.isHaveNoPerson && mIsAutoModel) {
                 mIsAutoModel = false;
                 performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
@@ -71,7 +71,7 @@ public class MonitorService extends AccessibilityService {
         }
 
         if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            //Log.i("MonitorServiceJump", "TYPE_WINDOW_CONTENT_CHANGED");
+            LogUtils.log("MonitorServiceJump.TYPE_WINDOW_CONTENT_CHANGED");
             run(event);
         }
 
@@ -80,36 +80,37 @@ public class MonitorService extends AccessibilityService {
     @SuppressWarnings("deprecation")
     private void unlockScreen() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK
-                | PowerManager.ACQUIRE_CAUSES_WAKEUP
-                | PowerManager.ON_AFTER_RELEASE, "MyWakeLock");
-
-        wakeLock.acquire();
-        wakeLock.release();
+        if (pm != null) {
+            PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "YangJ:wakeLock");
+            if (wakeLock != null) {
+                wakeLock.acquire(24 * 60 * 60 * 1000);
+                wakeLock.release();
+            }
+        }
     }
 
     private void run(AccessibilityEvent event) {
-
-        //Log.i("MonitorServiceJump", "run");
+        LogUtils.log("MonitorServiceJump.run");
         AccessibilityNodeInfo nodeInfo = event.getSource();
 
         if (null != nodeInfo) {
             mNodeInfoList.clear();
             traverseNode(nodeInfo);
-            if (mContainsLucky && !mLuckyClicked) {
-                Log.i("MonitorServiceJump", "mContainsLucky");
+            if (mContainsLucky) {
+                LogUtils.log("MonitorServiceJump.mContainsLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     mContainsLucky = false;
-                    mLuckyClicked = true;
                     mOpenLuckyClicked = false;
                     AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
-                    cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    if (cellNode != null) {
+                        cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    }
                 }
             }
             if (mContainsOpenLucky  && !mOpenLuckyClicked) {
                 mOpenLuckyClicked = true;
-                Log.i("MonitorServiceJump", "mContainsOpenLucky");
+                LogUtils.log("MonitorServiceJump.mContainsOpenLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     if (null == nodeInfo) {
@@ -123,12 +124,10 @@ public class MonitorService extends AccessibilityService {
                     cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     mContainsOpenLucky = false;
                     mIsAutoModel = true;
-
-
                 }
             }
             if (mLuckyInfo) {
-                Log.i("MonitorServiceJump", "mLuckyInfo");
+                LogUtils.log("MonitorServiceJump.mLuckyInfo");
                 if (mIsAutoModel) {
 
                 }
@@ -150,37 +149,37 @@ public class MonitorService extends AccessibilityService {
         } else {
 
             // 添加判断“開”的逻辑
-            if (node!=null && node.getParent()!=null) {
+            if (node.getParent()!=null) {
                 int childNumber = node.getParent().getChildCount();
                 try {
-                    if (childNumber>2 && "android.widget.Button".equals(node.getClassName())) {
-                        String text1 = node.getParent().getChild(1).getText().toString();
-                        if (text1.contains("发了一个红包")) {
+                    if (childNumber > 2 && "android.widget.Button".contentEquals(node.getClassName())) {
+                        String text = node.getParent().getChild(1).getText().toString();
+                        if (text.contains("发了一个红包")) {
                             mContainsOpenLucky = true;
                             mNodeInfoList.add(node);
                         }
                     }
                 } catch (Exception e) {
-
+                    Log.e("YangJ", "error", e);
                 }
             }
 
             CharSequence text = node.getText();
             if (null != text && text.length() > 0) {
                 String str = text.toString();
-                //Log.i("MonitorService", str);
+                LogUtils.log("MonitorService." + str);
 
                 if (str.contains("领取红包") || (Const.isNeedOpenSelf && str.contains("查看红包")) ) {
                     mContainsLucky = true;
                     mNodeInfoList.add(node.getParent());
                 }
 
-                if (str.contains("你领取了") || str.contains("你的红包已被领完")) {
-                    //Log.i("MonitorService", str);
-                    mContainsLucky = false;
-                    mContainsOpenLucky = false;
-                    mNodeInfoList.clear();
-                }
+//                if (str.contains("你领取了") || str.contains("你的红包已被领完")) {
+//                    LogUtils.log("MonitorService." + str);
+//                    mContainsLucky = false;
+//                    mContainsOpenLucky = false;
+//                    mNodeInfoList.clear();
+//                }
 
                 if (str.contains("红包详情") || str.contains("手慢了")) {
                     mLuckyInfo = true;
@@ -245,6 +244,7 @@ public class MonitorService extends AccessibilityService {
                 parcel.recycle();
             }
         } catch (Exception e) {
+            Log.e("YangJ", "error", e);
         }
 
         return text;
@@ -253,7 +253,7 @@ public class MonitorService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         Const.isOpen = true;
-        Log.i("11", "Const.isOpen=" + Const.isOpen);
+        LogUtils.log("Const.isOpen=." + Const.isOpen);
         super.onServiceConnected();
     }
 
@@ -265,7 +265,7 @@ public class MonitorService extends AccessibilityService {
     @Override
     public boolean onUnbind(Intent intent) {
         Const.isOpen = false;
-        Log.i("11", "Const.isOpen=" + Const.isOpen);
+        LogUtils.log("Const.isOpen=" + Const.isOpen);
         return super.onUnbind(intent);
     }
 }
