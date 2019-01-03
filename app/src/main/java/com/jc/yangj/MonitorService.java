@@ -1,10 +1,5 @@
 package com.jc.yangj;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import android.accessibilityservice.AccessibilityService;
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -18,6 +13,10 @@ import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.RemoteViews;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by xueep on 15/12/00.
@@ -57,10 +56,8 @@ public class MonitorService extends AccessibilityService {
                     }
                 }
             }
-        }
-
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            LogUtils.log("onAccessibilityEvent.TYPE_WINDOW_STATE_CHANGED");
+        } else if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            // LogUtils.log("onAccessibilityEvent.TYPE_WINDOW_STATE_CHANGED");
             if (!Const.isHaveNoPerson && mIsAutoModel) {
                 mIsAutoModel = false;
                 performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
@@ -68,10 +65,8 @@ public class MonitorService extends AccessibilityService {
             }
             mOpenLuckyClicked = false;
             run(event);
-        }
-
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            LogUtils.log("MonitorServiceJump.TYPE_WINDOW_CONTENT_CHANGED");
+        } else if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // LogUtils.log("MonitorServiceJump.TYPE_WINDOW_CONTENT_CHANGED");
             run(event);
         }
 
@@ -90,14 +85,14 @@ public class MonitorService extends AccessibilityService {
     }
 
     private void run(AccessibilityEvent event) {
-        LogUtils.log("MonitorServiceJump.run");
+        // LogUtils.log("MonitorServiceJump.run");
         AccessibilityNodeInfo nodeInfo = event.getSource();
 
         if (null != nodeInfo) {
             mNodeInfoList.clear();
             traverseNode(nodeInfo);
             if (mContainsLucky) {
-                LogUtils.log("MonitorServiceJump.mContainsLucky");
+                // LogUtils.log("MonitorServiceJump.mContainsLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     mContainsLucky = false;
@@ -108,9 +103,9 @@ public class MonitorService extends AccessibilityService {
                     }
                 }
             }
-            if (mContainsOpenLucky  && !mOpenLuckyClicked) {
+            if (mContainsOpenLucky && !mOpenLuckyClicked) {
                 mOpenLuckyClicked = true;
-                LogUtils.log("MonitorServiceJump.mContainsOpenLucky");
+                // LogUtils.log("MonitorServiceJump.mContainsOpenLucky");
                 int size = mNodeInfoList.size();
                 if (size > 0) {
                     if (null == nodeInfo) {
@@ -127,7 +122,7 @@ public class MonitorService extends AccessibilityService {
                 }
             }
             if (mLuckyInfo) {
-                LogUtils.log("MonitorServiceJump.mLuckyInfo");
+                // ("MonitorServiceJump.mLuckyInfo");
                 if (mIsAutoModel) {
 
                 }
@@ -137,62 +132,70 @@ public class MonitorService extends AccessibilityService {
 
     }
 
-    private void traverseNode(AccessibilityNodeInfo node) {
-        if (null == node) return;
+    private final int NONE = 0;
+    private final int WX_RED = 1;
+    private final int WX_GONE = 2;
+
+    private int traverseNode(AccessibilityNodeInfo node) {
+        if (null == node) return NONE;
+        // LogUtils.log("MonitorService.deep" + deep);
 
         final int count = node.getChildCount();
         if (count > 0) {
+            boolean isHaveRED = false;
+            boolean isHaveGone = false;
             for (int i = 0; i < count; ++i) {
                 AccessibilityNodeInfo childNode = node.getChild(i);
-                traverseNode(childNode);
-            }
-        } else {
-
-            // 添加判断“開”的逻辑
-            if (node.getParent()!=null) {
-                int childNumber = node.getParent().getChildCount();
-                try {
-                    if (childNumber > 2 && "android.widget.Button".contentEquals(node.getClassName())) {
-                        String text = node.getParent().getChild(1).getText().toString();
-                        if (text.contains("发了一个红包")) {
-                            mContainsOpenLucky = true;
-                            mNodeInfoList.add(node);
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.e("YangJ", "error", e);
+                int result = traverseNode(childNode);
+                if (result == WX_RED) {
+                    isHaveRED = true;
+                }
+                if (result == WX_GONE) {
+                    isHaveGone = true;
                 }
             }
 
+            if (!isHaveGone && isHaveRED) {
+                mContainsLucky = true;
+                mNodeInfoList.add(node);
+            }
+        } else {
             CharSequence text = node.getText();
             if (null != text && text.length() > 0) {
                 String str = text.toString();
                 LogUtils.log("MonitorService." + str);
 
-                if (str.contains("领取红包") || (Const.isNeedOpenSelf && str.contains("查看红包")) ) {
+                // 添加判断“開”的逻辑
+                if (str.contains("看看大家的手气")) {
+                    if (node.getParent() != null && node.getParent().getParent() != null) {
+                        AccessibilityNodeInfo parent = node.getParent().getParent();
+                        if (parent.getChildCount() > 3 && parent.getChild(2) != null) {
+                            AccessibilityNodeInfo openButton = parent.getChild(2);
+                            LogUtils.log("ClassName -> " + openButton.getClassName());
+                            mContainsOpenLucky = true;
+                            mNodeInfoList.add(openButton);
+                        }
+                    }
+                } else if (str.contains("领取红包") || (Const.isNeedOpenSelf && str.contains("查看红包"))) {
                     mContainsLucky = true;
                     mNodeInfoList.add(node.getParent());
-                }
-
-//                if (str.contains("你领取了") || str.contains("你的红包已被领完")) {
-//                    LogUtils.log("MonitorService." + str);
-//                    mContainsLucky = false;
-//                    mContainsOpenLucky = false;
-//                    mNodeInfoList.clear();
-//                }
-
-                if (str.contains("红包详情") || str.contains("手慢了")) {
+                } else if (str.contains("微信红包")) {
+                    return WX_RED;
+                } else if (str.contains("已过期") || str.contains("已被领完") || str.contains("已领取")) {
+                    return WX_GONE;
+                } else if (str.contains("红包详情") || str.contains("手慢了")) {
                     mLuckyInfo = true;
                 }
             }
+            // LogUtils.log("MonitorService11." + node);
         }
+        return NONE;
     }
 
 
     /**
      * @param notification 通知栏
      * @return 包含的字符串
-     *
      */
     public List<String> getText(Notification notification) {
         if (null == notification) return null;
@@ -205,7 +208,7 @@ public class MonitorService extends AccessibilityService {
         }
 
         if (views == null) {
-            if (notification.tickerText!=null) {
+            if (notification.tickerText != null) {
                 text.add(notification.tickerText.toString());
                 return text;
             } else {
