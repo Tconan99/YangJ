@@ -25,16 +25,6 @@
         android:textOff="已关闭" />
 
 	<Switch
-	    android:id="@+id/main_havenoperson_switch"
-	    android:layout_width="match_parent"
-	    android:layout_height="wrap_content"
-	    android:layout_marginTop="20dp"
-	    android:checked="false"
-	    android:text="是否开启无人模式"
-	    android:textOff="不开启"
-	    android:textOn="开启" />
-
-	<Switch
 		android:id="@+id/main_neednotify_switch"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
@@ -53,23 +43,5 @@
 		android:text="是否抢自己的红包"
 		android:textOff="不开启"
 		android:textOn="开启" />
-
-	<Button
-	    android:id="@+id/main_update_btn"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"
-	    android:layout_gravity="center_horizontal"
-	    android:layout_marginTop="20dp"
-	    android:enabled="false"
-	    android:text="更新" />
-
-    <Button
-        android:id="@+id/main_tips_btn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="20dp"
-		android:visibility="gone"
-        android:text="提示" />
     
 </LinearLayout>

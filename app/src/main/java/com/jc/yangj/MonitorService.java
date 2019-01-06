@@ -1,18 +1,21 @@
 package com.jc.yangj;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
 import android.app.Notification;
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
+import android.graphics.Path;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.os.PowerManager;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 import android.widget.RemoteViews;
+import android.widget.Toast;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -22,23 +25,15 @@ import java.util.List;
  * Created by xueep on 15/12/00.
  */
 public class MonitorService extends AccessibilityService {
-    private ArrayList<AccessibilityNodeInfo> mNodeInfoList = new ArrayList<AccessibilityNodeInfo>();
-
-    private boolean mLuckyInfo;             // 内容页
-    private boolean mContainsLucky;         // 有红包
-
-    private boolean mContainsOpenLucky;     // 拆红包
-    private boolean mOpenLuckyClicked;      // 拆红包是否点击了
-    private boolean mIsAutoModel;           // 自动模式
 
     @Override
     public synchronized void onAccessibilityEvent(AccessibilityEvent event) {
         final int eventType = event.getEventType();
 
+
+
         if (eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             LogUtils.log("onAccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED");
-            unlockScreen();
-            // mLuckyClicked = false;
 
             Notification notification = (Notification) event.getParcelableData();
             List<String> textList = getText(notification);
@@ -50,114 +45,186 @@ public class MonitorService extends AccessibilityService {
                         try {
                             pendingIntent.send();
                         } catch (PendingIntent.CanceledException e) {
-
+                            System.err.println(e.getMessage());
                         }
                         break;
                     }
                 }
             }
         } else if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            // LogUtils.log("onAccessibilityEvent.TYPE_WINDOW_STATE_CHANGED");
-            if (!Const.isHaveNoPerson && mIsAutoModel) {
-                mIsAutoModel = false;
-                performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                return;
+            LogUtils.log("onAccessibilityEvent -> " + eventType + " -> " + event);
+            String className = event.getClassName().toString();
+            LogUtils.log("className -> " + className);
+            if ("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyNotHookReceiveUI".equals(className)) {
+                openPacket3();
+            } else if ("com.tencent.mm.ui.LauncherUI".equals(className)) {
+                clickPacket();
+            } else {
+                LogUtils.log("event -> " + event);
             }
-            mOpenLuckyClicked = false;
-            run(event);
         } else if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            // LogUtils.log("MonitorServiceJump.TYPE_WINDOW_CONTENT_CHANGED");
-            run(event);
+            clickPacket();
+        } else {
+            LogUtils.log("onAccessibilityEvent -> " + eventType + " -> " + event);
         }
 
     }
 
-    @SuppressWarnings("deprecation")
-    private void unlockScreen() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (pm != null) {
-            PowerManager.WakeLock wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "YangJ:wakeLock");
-            if (wakeLock != null) {
-                wakeLock.acquire(24 * 60 * 60 * 1000);
-                wakeLock.release();
-            }
-        }
-    }
-
-    private void run(AccessibilityEvent event) {
-        // LogUtils.log("MonitorServiceJump.run");
-        AccessibilityNodeInfo nodeInfo = event.getSource();
-
-        if (null != nodeInfo) {
-            mNodeInfoList.clear();
-            traverseNode(nodeInfo);
-            if (mContainsLucky) {
-                // LogUtils.log("MonitorServiceJump.mContainsLucky");
-                int size = mNodeInfoList.size();
-                if (size > 0) {
-                    mContainsLucky = false;
-                    mOpenLuckyClicked = false;
-                    AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
-                    if (cellNode != null) {
-                        cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+    private void clickPacket() {
+        AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
+        if (nodeInfo != null) {
+            List<AccessibilityNodeInfo> nodeInfoList = nodeInfo.findAccessibilityNodeInfosByText("微信红包");
+            for (AccessibilityNodeInfo info : nodeInfoList) {
+                if (info != null) {
+                    AccessibilityNodeInfo parent = info.getParent();
+                    if (parent != null && parent.getChildCount() > 1) {
+                        AccessibilityNodeInfo type = parent.getChild(1);
+                        if (type != null && type.getText() != null) {
+                            String typeValue = type.getText().toString();
+                            if ("已过期".equals(typeValue) || "已被领完".equals(typeValue) || "已领取".equals(typeValue)) {
+                                continue;
+                            }
+                            parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                        }
                     }
                 }
             }
-            if (mContainsOpenLucky && !mOpenLuckyClicked) {
-                mOpenLuckyClicked = true;
-                // LogUtils.log("MonitorServiceJump.mContainsOpenLucky");
-                int size = mNodeInfoList.size();
-                if (size > 0) {
-                    if (null == nodeInfo) {
-                        return;
-                    }
+        }
+    }
 
-                    // 播放提示
-                    MainActivity.playSound();
+    private void openPacket3() {
+        AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
+        if (nodeInfo != null) {
+            nodeInfo.getText();
+        }
 
-                    AccessibilityNodeInfo cellNode = mNodeInfoList.get(size - 1);
-                    cellNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    mContainsOpenLucky = false;
-                    mIsAutoModel = true;
-                }
+
+
+        Path path = new Path();
+
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        float dpi = metrics.densityDpi;
+        if (640 == dpi) { //1440
+            path.moveTo(720, 1575);
+        } else if (320 == dpi) { //720p
+            path.moveTo(355, 780);
+        } else if (480 == dpi) { //1080p
+            path.moveTo(540, 1312);
+        }
+
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        GestureDescription gestureDescription = builder.addStroke(new GestureDescription.StrokeDescription(path, 1050, 200)).build();
+        dispatchGesture(gestureDescription, new GestureResultCallback() {
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                Log.d("tl", "onCompleted");
+                // mMutex = false;
+                super.onCompleted(gestureDescription);
             }
-            if (mLuckyInfo) {
-                // ("MonitorServiceJump.mLuckyInfo");
-                if (mIsAutoModel) {
 
-                }
-                mLuckyInfo = false;
+            @Override
+            public void onCancelled(GestureDescription gestureDescription) {
+                // mMutex = false;
+                super.onCancelled(gestureDescription);
+            }
+        }, null);
+    }
+
+    private void openPacket2() {
+
+        AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
+        if (nodeInfo != null) {
+            List<AccessibilityNodeInfo> nodeInfoList = nodeInfo.findAccessibilityNodeInfosByText("看看大家的手气");
+            if (nodeInfoList.size() > 0) {
+                Toast.makeText(this.getApplicationContext(), "open", Toast.LENGTH_SHORT).show();
+                // nodeInfo.getChild(2).performAction(AccessibilityNodeInfo.ACTION_CLICK);
             }
         }
 
+//        performGlobalAction(GLOBAL_ACTION_HOME);
+//
+//        new android.os.Handler().postDelayed(
+//                new Runnable() {
+//                    public void run() {
+//                        performGlobalAction(GLOBAL_ACTION_BACK);
+//                    }
+//                },
+//                1000);
     }
 
-    private final int NONE = 0;
-    private final int WX_RED = 1;
-    private final int WX_GONE = 2;
+    private void openPacket() {
+        // 正在加载之后 不会触发可接收的事件 所以需要如下处理 循环有风险 break需谨慎
+        int count = 1;
+        while (true) {
+            AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
+            if (nodeInfo != null) {
+                if (nodeInfo.getChildCount() > 3
+                        && nodeInfo.getChild(3) != null
+                        && nodeInfo.getChild(3).getChildCount() == 1
+                        && nodeInfo.getChild(3).getChild(0).getText() != null
+                        && nodeInfo.getChild(3).getChild(0).getText().toString().equals("看看大家的手气"))  {
+                    Toast.makeText(this.getApplicationContext(), "open", Toast.LENGTH_SHORT).show();
+                    // nodeInfo.getChild(2).performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    break;
+                } else {
+                    if (nodeInfo.getChildCount() != 1
+                            || nodeInfo.getChild(0) == null
+                            || nodeInfo.getChild(0).getChildCount() != 2
+                            || nodeInfo.getChild(0).getChild(0) == null
+                            || !nodeInfo.getChild(0).getChild(0).getClassName().toString().equals("android.widget.ProgressBar")
+                            || nodeInfo.getChild(0).getChild(1) == null
+                            || nodeInfo.getChild(0).getChild(1).getText() == null
+                            || !nodeInfo.getChild(0).getChild(1).getText().toString().equals("正在加载...")) {
+                        break;
+                    }
 
-    private int traverseNode(AccessibilityNodeInfo node) {
-        if (null == node) return NONE;
-        // LogUtils.log("MonitorService.deep" + deep);
+//                    List<AccessibilityNodeInfo> loading = nodeInfo.findAccessibilityNodeInfosByText("正在加载...");
+//                    // Toast.makeText(this.getApplicationContext(), "don't open2", Toast.LENGTH_SHORT).show();
+//                    if (loading.size() == 0) {
+//                        break;
+//                    }
+                    LogUtils.log("don't open2 -> " + nodeInfo);
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                // Toast.makeText(this.getApplicationContext(), "don't open1", Toast.LENGTH_SHORT).show();
+                LogUtils.log("don't open1");
+
+                performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS);
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                // performGlobalAction(GLOBAL_ACTION_BACK);
+
+                if (count > 0) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    count --;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    private void traverseNode(AccessibilityNodeInfo node) {
+        if (null == node) return;
 
         final int count = node.getChildCount();
         if (count > 0) {
-            boolean isHaveRED = false;
-            boolean isHaveGone = false;
             for (int i = 0; i < count; ++i) {
                 AccessibilityNodeInfo childNode = node.getChild(i);
-                int result = traverseNode(childNode);
-                if (result == WX_RED) {
-                    isHaveRED = true;
-                }
-                if (result == WX_GONE) {
-                    isHaveGone = true;
-                }
-            }
+                traverseNode(childNode);
 
-            if (!isHaveGone && isHaveRED) {
-                mContainsLucky = true;
-                mNodeInfoList.add(node);
             }
         } else {
             CharSequence text = node.getText();
@@ -165,31 +232,9 @@ public class MonitorService extends AccessibilityService {
                 String str = text.toString();
                 LogUtils.log("MonitorService." + str);
 
-                // 添加判断“開”的逻辑
-                if (str.contains("看看大家的手气")) {
-                    if (node.getParent() != null && node.getParent().getParent() != null) {
-                        AccessibilityNodeInfo parent = node.getParent().getParent();
-                        if (parent.getChildCount() > 3 && parent.getChild(2) != null) {
-                            AccessibilityNodeInfo openButton = parent.getChild(2);
-                            LogUtils.log("ClassName -> " + openButton.getClassName());
-                            mContainsOpenLucky = true;
-                            mNodeInfoList.add(openButton);
-                        }
-                    }
-                } else if (str.contains("领取红包") || (Const.isNeedOpenSelf && str.contains("查看红包"))) {
-                    mContainsLucky = true;
-                    mNodeInfoList.add(node.getParent());
-                } else if (str.contains("微信红包")) {
-                    return WX_RED;
-                } else if (str.contains("已过期") || str.contains("已被领完") || str.contains("已领取")) {
-                    return WX_GONE;
-                } else if (str.contains("红包详情") || str.contains("手慢了")) {
-                    mLuckyInfo = true;
-                }
             }
             // LogUtils.log("MonitorService11." + node);
         }
-        return NONE;
     }
 
 
@@ -214,9 +259,7 @@ public class MonitorService extends AccessibilityService {
             } else {
                 return null;
             }
-
         }
-
 
         try {
             Field field = views.getClass().getDeclaredField("mActions");
@@ -256,7 +299,6 @@ public class MonitorService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         Const.isOpen = true;
-        LogUtils.log("Const.isOpen=." + Const.isOpen);
         super.onServiceConnected();
     }
 
@@ -268,7 +310,6 @@ public class MonitorService extends AccessibilityService {
     @Override
     public boolean onUnbind(Intent intent) {
         Const.isOpen = false;
-        LogUtils.log("Const.isOpen=" + Const.isOpen);
         return super.onUnbind(intent);
     }
 }
